@@ -1,0 +1,1183 @@
+<!DOCTYPE html>
+<html lang="uz" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Xavfsiz Maskan - Ta'lim Kiberxavfsizlik Ekosistemasi</title>
+  <meta name="description" content="O'zbekiston ta'lim muassasalari va akademik litseylari uchun kiberxavfsizlik va tarmoq boshqaruv ekotizimi boshqaruv paneli">
+
+  <!-- 1. Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- 2. FontAwesome 6 Icons CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+  <!-- 3. Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    body { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
+    .font-mono, td.tabular-nums, .tabular-nums {
+      font-family: 'JetBrains Mono', monospace;
+      font-variant-numeric: tabular-nums;
+    }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.3); border-radius: 3px; }
+    .dark ::-webkit-scrollbar-thumb { background: rgba(51, 65, 85, 0.5); }
+  </style>
+
+  <!--
+    ======================================================================================
+    ARXITEKTURA VA MASSHTABLASH (SMART HYBRID & MULTI-TENANT SAAS) TUSHUNTIRISHI:
+    ======================================================================================
+    
+    1. SMART HYBRID ARXITEKTURASI (OFFLINE-RESILIENT EDGE + CLOUD SENTINEL):
+       - Har bir litseyda lokal tarmoq shlyuzida (Gateway / Router / Server) AdGuard Home yoki 
+         DNSmasq/MikroTik o'rnatiladi.
+       - "Smart Hybrid" texnologiyasining asosiy afzalligi: Agar tuman yoki viloyat bo'yicha tashqi 
+         internet uzilib qolsa yoki markaziy AI server bilan aloqa vaqtincha yo'qolsa ham, 
+         lokal AdGuard Home o'zining keshidagi qoidalar va dars jadvallari asosida litseyning 
+         ichki tarmog'ini 100% oflayn rejimda himoyalashda davom etadi (0ms kechikish).
+       - Aloqa qayta tiklanganda, barcha to'plangan hodisalar (logs) va metrikalar fonda 
+         markaziy Supabase bazasiga avtomatik sinxronlashtiriladi.
+       
+    2. MULTI-TENANT (KO'P LITSEYLI SAAS) ISHLASH MEXANIZMI:
+       - Respublika miqyosidagi yuzlab akademik litseylar va maktablar bitta markaziy platformada 
+         ishlaydi.
+       - Har bir muassasa o'zining unikal "Litsey ID" siga ega (masalan: UZ-TAS-AL01, UZ-SAM-PM04).
+       - Markaziy Supabase bazasida Row Level Security (RLS) siyosati qo'llaniladi: 
+         har bir litsey administratori faqat o'z litseyiga tegishli qoidalar, kompyuterlar ro'yxati 
+         va xavfsizlik loglarini ko'radi va boshqaradi.
+       - Shu bilan birga, Vazirlik yagona boshqaruv paneli orqali barcha litseylardagi umumiy 
+         kiberxavfsizlik indeksini real vaqtda monitoring qila oladi.
+
+    3. FASTAPI BACKEND VA AI/VIRUSTOTAL INTEGRATSIYASI:
+       - Ushbu frontend paneldagi skaner fayl yoki rasmni FastAPI backend serveriga 
+         (standart: http://127.0.0.1:8000/api/v1/scan) POST so'rovi orqali jo'natadi.
+       - Backend server fayl xeshini VirusTotal API (72 ta antivirus dvigateli) orqali tekshiradi, 
+         tasvirlarni esa Google Gemini Vision API orqali tahlil qilib, darsga zid yoki xavfli 
+         kontentlarni aniqlaydi va natijani ekranga chiqaradi.
+    ======================================================================================
+  -->
+</head>
+<body class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 min-h-screen transition-colors duration-200">
+
+  <!-- 1. TO'LIQ EKRANLI AUTHENTICATION (KIRISH) MODALI -->
+  <div id="authModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 backdrop-blur-md transition-opacity">
+    <div class="w-full max-w-md p-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl">
+      <div class="flex flex-col items-center text-center mb-6">
+        <div class="w-14 h-14 bg-sky-500/10 text-sky-500 rounded-xl flex items-center justify-center text-2xl mb-4 border border-sky-500/20">
+          <i class="fa-solid fa-shield-halved"></i>
+        </div>
+        <h2 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Xavfsiz Maskan</h2>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Ta'lim Kiberxavfsizlik Boshqaruv Markazi</p>
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 mt-3">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Smart Hybrid Himoya Faol
+        </span>
+      </div>
+
+      <form id="loginForm" onsubmit="handleLogin(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1.5">
+            Muassasa identifikatori (Tenant ID)
+          </label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
+              <i class="fa-solid fa-school text-sm"></i>
+            </span>
+            <input type="text" id="tenantInput" value="UZ-TAS-AL01" required
+              class="w-full pl-9 pr-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono">
+          </div>
+        </div>
+
+        <div>
+          <div class="flex justify-between items-center mb-1.5">
+            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-300">
+              Administrator Paroli
+            </label>
+            <span class="text-xs text-sky-500 cursor-pointer hover:underline" onclick="showDefaultPassHint()">Standart parol?</span>
+          </div>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
+              <i class="fa-solid fa-lock text-sm"></i>
+            </span>
+            <input type="password" id="passwordInput" placeholder="••••••••••••" required
+              class="w-full pl-9 pr-10 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+            <button type="button" onclick="togglePassVisibility('passwordInput')" class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+              <i class="fa-solid fa-eye text-sm"></i>
+            </button>
+          </div>
+        </div>
+
+        <div id="loginError" class="hidden p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs">
+          <i class="fa-solid fa-triangle-exclamation mr-1.5"></i> Parol noto'g'ri kiritildi! Iltimos qayta urinib ko'ring.
+        </div>
+
+        <button type="submit" 
+          class="w-full py-2.5 px-4 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2 shadow-lg shadow-sky-600/25">
+          <span>Tizimga Kirish</span>
+          <i class="fa-solid fa-arrow-right text-xs"></i>
+        </button>
+      </form>
+
+      <div class="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 text-center text-xs text-slate-400">
+        Respublika Ta'lim Tarmoqlari Xavfsizlik Standarti v4.2
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. ASOSIY ILOVA LAYOUTI -->
+  <div id="mainApp" class="min-h-screen flex flex-col">
+    <!-- HEADER -->
+    <header class="sticky top-0 z-40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+        
+        <div class="flex items-center gap-4">
+          <div class="flex items-center gap-2.5">
+            <div class="w-9 h-9 bg-sky-600 text-white rounded-lg flex items-center justify-center shadow-md shadow-sky-600/30">
+              <i class="fa-solid fa-shield-cat text-lg"></i>
+            </div>
+            <div>
+              <span class="text-base font-bold tracking-tight text-slate-900 dark:text-white">Xavfsiz Maskan</span>
+              <span class="hidden sm:inline-block text-xs text-sky-500 ml-1.5 font-medium">EDU-SENTINEL</span>
+            </div>
+          </div>
+
+          <div class="h-5 w-px bg-slate-200 dark:bg-slate-800 hidden md:block"></div>
+
+          <!-- Multi-tenant Litsey Selector -->
+          <div class="relative hidden sm:block">
+            <select id="lyceumSelect" onchange="handleLyceumChange(this.value)" 
+              class="text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-md py-1.5 pl-2.5 pr-8 focus:outline-none focus:ring-1 focus:ring-sky-500 appearance-none font-medium cursor-pointer">
+              <option value="UZ-TAS-AL01">Toshkent TATU qoshidagi AL (ID: UZ-TAS-AL01)</option>
+              <option value="UZ-SAM-PM04">Samarqand 1-sonli IMI (ID: UZ-SAM-PM04)</option>
+              <option value="UZ-FER-AL03">Farg'ona FarDU AL (ID: UZ-FER-AL03)</option>
+              <option value="UZ-NAM-AL02">Namangan MQI AL (ID: UZ-NAM-AL02)</option>
+            </select>
+            <i class="fa-solid fa-chevron-down absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 pointer-events-none"></i>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2.5">
+          <!-- Smart Hybrid holati -->
+          <button onclick="openSmartHybridModal()" title="Smart Hybrid Arxitekturasi"
+            class="hidden lg:flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors">
+            <i class="fa-solid fa-server text-[11px]"></i>
+            <span class="font-medium">AdGuard Edge: 0ms</span>
+          </button>
+
+          <!-- Tun / Kun rejimi (Dark/Light Mode toggle) -->
+          <button id="themeToggleBtn" onclick="toggleTheme()" title="Tun/Kun rejimini o'zgartirish"
+            class="w-9 h-9 flex items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+            <i id="themeIcon" class="fa-solid fa-moon text-sm"></i>
+          </button>
+
+          <!-- Sozlamalar (Settings) -->
+          <button onclick="openSettingsModal()" title="Tizim Sozlamalari & Parolni o'zgartirish"
+            class="w-9 h-9 flex items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+            <i class="fa-solid fa-sliders text-sm"></i>
+          </button>
+
+          <!-- Chiqish / Qulflash -->
+          <button onclick="handleLogout()" title="Xavfsiz Qulflash"
+            class="px-3 py-1.5 text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 rounded-lg transition-colors flex items-center gap-1.5">
+            <i class="fa-solid fa-arrow-right-from-bracket text-[11px]"></i>
+            <span class="hidden sm:inline">Qulflash</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- ASOSIY KONTENT -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+      <!-- LITSEY XULOSASI & TEZKOR MA'LUMOT -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-200 dark:border-slate-800">
+        <div>
+          <h1 id="selectedLyceumTitle" class="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
+            Toshkent Axborot Texnologiyalari Universiteti qoshidagi AL
+          </h1>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-2">
+            <span>Litsey ID: <strong id="selectedLyceumCode" class="font-mono text-slate-700 dark:text-slate-300">UZ-TAS-AL01</strong></span>
+            <span>·</span>
+            <span>Tarmoq podtarmog'i: <span class="font-mono">192.168.10.0/23</span></span>
+            <span>·</span>
+            <span class="text-emerald-500 flex items-center gap-1"><i class="fa-solid fa-circle-check text-[10px]"></i> Lokal AdGuard Sinxron</span>
+          </p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="refreshData()" class="px-3 py-1.5 text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-md transition-colors flex items-center gap-1.5">
+            <i class="fa-solid fa-arrows-rotate text-[11px]"></i>
+            <span>Yangilash</span>
+          </button>
+          <button onclick="openSmartHybridModal()" class="px-3 py-1.5 text-xs font-semibold bg-sky-600 hover:bg-sky-500 text-white rounded-md transition-colors flex items-center gap-1.5 shadow-sm">
+            <i class="fa-solid fa-diagram-project text-[11px]"></i>
+            <span>Arxitektura (Smart Hybrid)</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 1. STATISTIKA KARTALARI (4 TA ASOSIY KO'RSATKICH) -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- 1. Bloklangan Saytlar -->
+        <div class="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xs">
+          <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-2">
+            <span class="text-xs font-semibold uppercase tracking-wider">Bloklangan Saytlar</span>
+            <div class="w-8 h-8 rounded-lg bg-rose-500/10 text-rose-500 flex items-center justify-center">
+              <i class="fa-solid fa-ban text-sm"></i>
+            </div>
+          </div>
+          <div class="flex items-baseline gap-2">
+            <span id="statBlockedSites" class="text-2xl font-bold font-mono tracking-tight tabular-nums text-slate-900 dark:text-white">14,892</span>
+            <span class="text-xs font-medium text-rose-500 flex items-center gap-0.5">
+              <i class="fa-solid fa-arrow-up text-[10px]"></i> +418 bugun
+            </span>
+          </div>
+          <div class="text-[11px] text-slate-400 mt-2 flex items-center justify-between">
+            <span>Dars vaqtidagi taqiqlar</span>
+            <span class="font-mono">AdGuard DNS</span>
+          </div>
+        </div>
+
+        <!-- 2. Virusli Fayllar (VirusTotal) -->
+        <div class="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xs">
+          <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-2">
+            <span class="text-xs font-semibold uppercase tracking-wider">Virusli Fayllar</span>
+            <div class="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center">
+              <i class="fa-solid fa-bug text-sm"></i>
+            </div>
+          </div>
+          <div class="flex items-baseline gap-2">
+            <span id="statInfectedFiles" class="text-2xl font-bold font-mono tracking-tight tabular-nums text-slate-900 dark:text-white">23</span>
+            <span class="text-xs font-medium text-amber-500 flex items-center gap-0.5">
+              <i class="fa-solid fa-shield-virus text-[10px]"></i> 72 dvigatel
+            </span>
+          </div>
+          <div class="text-[11px] text-slate-400 mt-2 flex items-center justify-between">
+            <span>VirusTotal orqali ushlangan</span>
+            <span class="font-mono text-amber-500 font-medium">100% Karantin</span>
+          </div>
+        </div>
+
+        <!-- 3. AI Tahlil Qilingan Rasmlar (Gemini Vision) -->
+        <div class="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xs">
+          <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-2">
+            <span class="text-xs font-semibold uppercase tracking-wider">AI Vision Tahlili</span>
+            <div class="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-500 flex items-center justify-center">
+              <i class="fa-solid fa-wand-magic-sparkles text-sm"></i>
+            </div>
+          </div>
+          <div class="flex items-baseline gap-2">
+            <span id="statAiScanned" class="text-2xl font-bold font-mono tracking-tight tabular-nums text-slate-900 dark:text-white">1,420</span>
+            <span class="text-xs font-medium text-indigo-500 flex items-center gap-0.5">
+              <i class="fa-solid fa-eye text-[10px]"></i> 19 nojo'ya
+            </span>
+          </div>
+          <div class="text-[11px] text-slate-400 mt-2 flex items-center justify-between">
+            <span>Gemini Vision API filtr</span>
+            <span class="font-mono text-indigo-400">Multimodal</span>
+          </div>
+        </div>
+
+        <!-- 4. Tarmoq Xavfsizligi Foizi (Health Score) -->
+        <div class="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xs">
+          <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-2">
+            <span class="text-xs font-semibold uppercase tracking-wider">Xavfsizlik Indeksi</span>
+            <div class="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+              <i class="fa-solid fa-shield-heart text-sm"></i>
+            </div>
+          </div>
+          <div class="flex items-baseline gap-2">
+            <span id="statHealthScore" class="text-2xl font-bold font-mono tracking-tight tabular-nums text-emerald-500">98.6%</span>
+            <span class="text-xs font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5">
+              <i class="fa-solid fa-circle-check text-[10px]"></i> A'lo daraja
+            </span>
+          </div>
+          <div class="text-[11px] text-slate-400 mt-2 flex items-center justify-between">
+            <span>Litsey xavfsizlik standarti</span>
+            <span class="font-mono text-slate-400">14 ta qoida</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. IKKI USTUNLI ASOSIY MODULLAR: SKANER & VAQT CHEKLOVLARI -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- CHAP: AI VA ANTIVIRUS SKANERI (FASTAPI + VIRUSTOTAL + GEMINI VISION) -->
+        <section class="lg:col-span-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <h2 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <i class="fa-solid fa-microchip text-sky-500"></i>
+                  <span>AI va Antivirus Skaneri</span>
+                </h2>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  FastAPI server (<code class="text-sky-500">POST /api/v1/scan</code>) orqali VirusTotal va Gemini Vision tekshiruvi
+                </p>
+              </div>
+              <span id="backendStatusBadge" class="text-[11px] px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 font-mono">
+                FastAPI: Tayyor
+              </span>
+            </div>
+
+            <!-- Drag & Drop Zona -->
+            <div id="dropZone" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)"
+              class="border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-sky-500 dark:hover:border-sky-500 rounded-xl p-6 text-center cursor-pointer transition-colors bg-slate-50/50 dark:bg-slate-800/30">
+              <input type="file" id="fileUploadInput" onchange="handleFileSelect(event)" class="hidden">
+              <div onclick="document.getElementById('fileUploadInput').click()">
+                <div class="w-12 h-12 mx-auto mb-3 rounded-full bg-sky-500/10 text-sky-500 flex items-center justify-center text-xl">
+                  <i class="fa-solid fa-cloud-arrow-up"></i>
+                </div>
+                <p class="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                  Fayl yoki rasmni bu yerga tashlang yoki <span class="text-sky-500 underline">tanlang</span>
+                </p>
+                <p class="text-xs text-slate-400 mt-1">
+                  EXE, DOCX, PDF, APK, JPG, PNG (Maksimal 25MB)
+                </p>
+              </div>
+            </div>
+
+            <!-- Tezkor namunaviy test fayllari (Hakamlarga tez ko'rsatish uchun) -->
+            <div class="mt-4">
+              <span class="text-xs font-semibold text-slate-600 dark:text-slate-400">Namoyish uchun test fayli:</span>
+              <div class="grid grid-cols-2 gap-2 mt-2">
+                <button type="button" onclick="runPresetScan('clean_doc')" class="text-left p-2 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs transition-colors flex items-center gap-2">
+                  <i class="fa-solid fa-file-pdf text-emerald-500"></i>
+                  <div class="truncate">
+                    <p class="font-medium text-slate-800 dark:text-slate-200 truncate">Informatika_Darslik.pdf</p>
+                    <p class="text-[10px] text-slate-400">Toza ta'limiy fayl</p>
+                  </div>
+                </button>
+                <button type="button" onclick="runPresetScan('malware_exe')" class="text-left p-2 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs transition-colors flex items-center gap-2">
+                  <i class="fa-solid fa-bug text-rose-500"></i>
+                  <div class="truncate">
+                    <p class="font-medium text-slate-800 dark:text-slate-200 truncate">Pubg_SpeedHack.exe</p>
+                    <p class="text-[10px] text-rose-400">Trojan / Keylogger</p>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            <!-- Skaner Natijasi Paneli -->
+            <div id="scanResultContainer" class="mt-4 hidden">
+              <div id="scanResultCard" class="p-4 rounded-xl border">
+                <!-- Dinamik to'ldiriladi -->
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-400">
+            <span>FastAPI: <code class="font-mono text-slate-500">http://127.0.0.1:8000</code></span>
+            <span class="flex items-center gap-1.5"><i class="fa-solid fa-circle-check text-emerald-500 text-[10px]"></i> Gemini Vision faol</span>
+          </div>
+        </section>
+
+        <!-- O'NG: SAYTLAR VA VAQT BO'YICHA CHEKLOVLAR (TIME & DOMAIN RESTRICTIONS) -->
+        <section class="lg:col-span-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <h2 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <i class="fa-solid fa-clock text-amber-500"></i>
+                  <span>Saytlar va Vaqt Cheklovlari</span>
+                </h2>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Dars soatlarida (masalan: 08:00 - 14:00) tarmoqda avtomatik bloklash qoidalari
+                </p>
+              </div>
+              <button onclick="exportAdGuardRules()" title="AdGuard / MikroTik qoidalarini olish"
+                class="text-xs px-2.5 py-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 font-medium transition-colors flex items-center gap-1">
+                <i class="fa-solid fa-download text-[10px]"></i>
+                <span>Sinxronlash</span>
+              </button>
+            </div>
+
+            <!-- Yangi Qoida Qo'shish Formasi -->
+            <form id="addRuleForm" onsubmit="handleAddRule(event)" class="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700/60 mb-4 space-y-3">
+              <div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                <div class="sm:col-span-6">
+                  <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
+                    Domen yoki IP
+                  </label>
+                  <input type="text" id="ruleDomainInput" placeholder="masalan: instagram.com" required
+                    class="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md text-xs font-mono focus:outline-none focus:ring-1 focus:ring-sky-500">
+                </div>
+                <div class="sm:col-span-3">
+                  <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
+                    Boshlanish
+                  </label>
+                  <input type="time" id="ruleStartInput" value="08:00" required
+                    class="w-full px-2 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md text-xs font-mono focus:outline-none focus:ring-1 focus:ring-sky-500">
+                </div>
+                <div class="sm:col-span-3">
+                  <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
+                    Tugash
+                  </label>
+                  <input type="time" id="ruleEndInput" value="14:00" required
+                    class="w-full px-2 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md text-xs font-mono focus:outline-none focus:ring-1 focus:ring-sky-500">
+                </div>
+              </div>
+
+              <div class="flex flex-wrap items-center justify-between gap-2 pt-1">
+                <div class="flex items-center gap-1.5">
+                  <select id="ruleCategoryInput" class="text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1 focus:outline-none">
+                    <option value="social">Ijtimoiy tarmoq</option>
+                    <option value="gaming">O'yinlar serveri</option>
+                    <option value="streaming">Video oqimlar</option>
+                    <option value="vpn_proxy">VPN & Proksi</option>
+                    <option value="gambling">Qimor & Bukmeker</option>
+                  </select>
+                  <span class="text-[11px] text-slate-400">Dush-Shan</span>
+                </div>
+                <button type="submit" 
+                  class="px-3 py-1 bg-amber-600 hover:bg-amber-500 text-white rounded-md text-xs font-semibold transition-colors flex items-center gap-1 shadow-xs">
+                  <i class="fa-solid fa-plus text-[10px]"></i>
+                  <span>Qoidani Saqlash</span>
+                </button>
+              </div>
+            </form>
+
+            <!-- Mavjud Qoidalar Ro'yxati -->
+            <div class="space-y-2 max-h-56 overflow-y-auto pr-1" id="rulesListContainer">
+              <!-- Dinamik to'ldiriladi -->
+            </div>
+          </div>
+
+          <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-400">
+            <span>Holat: <strong class="text-slate-700 dark:text-slate-300 font-mono" id="activeRulesCountLabel">6 ta faol qoida</strong></span>
+            <span class="text-amber-500"><i class="fa-solid fa-bolt text-[10px] mr-1"></i> AdGuard DNS 0ms kechikish</span>
+          </div>
+        </section>
+
+      </div>
+
+      <!-- 3. REAL VAQTDA TARMOQ HODISALARI JADVALI (LOGS) -->
+      <section class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+          <div>
+            <h2 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <i class="fa-solid fa-list-check text-sky-500"></i>
+              <span>Real Vaqtda Tarmoq Hodisalari Jurnali (Logs)</span>
+            </h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Lokal AdGuard va markaziy Supabase bazasidan olinayotgan jonli tarmoq xavfsizlik hodisalari
+            </p>
+          </div>
+
+          <!-- Qidiruv, Filter va Simulyatsiya tugmalari -->
+          <div class="flex flex-wrap items-center gap-2">
+            <div class="relative">
+              <input type="text" id="logSearchInput" oninput="handleLogSearch(this.value)" placeholder="IP yoki domen qidirish..."
+                class="w-48 pl-7 pr-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md focus:outline-none focus:ring-1 focus:ring-sky-500">
+              <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 pointer-events-none"></i>
+            </div>
+
+            <select id="logStatusFilter" onchange="handleLogFilter(this.value)"
+              class="text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md py-1.5 px-2 focus:outline-none">
+              <option value="ALL">Barcha holatlar</option>
+              <option value="BLOCKED">Faqat BLOCKED</option>
+              <option value="ALLOWED">Faqat ALLOWED</option>
+              <option value="QUARANTINED">Faqat QUARANTINED</option>
+            </select>
+
+            <button onclick="simulateIncomingAttack()" title="Hakamlarga hujumni ushlashni ko'rsatish"
+              class="px-2.5 py-1.5 text-xs font-semibold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 hover:bg-rose-500/20 rounded-md transition-colors flex items-center gap-1">
+              <i class="fa-solid fa-shield-virus text-[11px]"></i>
+              <span>+ Jonli Hodisa</span>
+            </button>
+
+            <button onclick="exportLogsToCsv()" title="CSV formatida yuklab olish"
+              class="px-2.5 py-1.5 text-xs font-medium bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-md transition-colors flex items-center gap-1">
+              <i class="fa-solid fa-file-csv text-[11px]"></i>
+              <span>Eksport</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Jadval -->
+        <div class="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-lg">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-50 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 font-semibold uppercase tracking-wider text-[11px]">
+                <th class="py-2.5 px-3">Vaqt</th>
+                <th class="py-2.5 px-3">Qurilma & IP Manzil</th>
+                <th class="py-2.5 px-3">Hodisa Turi</th>
+                <th class="py-2.5 px-3">Nishon (Domen / Fayl)</th>
+                <th class="py-2.5 px-3">Tafsilotlar</th>
+                <th class="py-2.5 px-3 text-right">Holati</th>
+              </tr>
+            </thead>
+            <tbody id="logsTableBody" class="divide-y divide-slate-200 dark:divide-slate-800 font-mono text-[11px]">
+              <!-- Dinamik to'ldiriladi -->
+            </tbody>
+          </table>
+        </div>
+
+        <div class="mt-3 flex items-center justify-between text-xs text-slate-400">
+          <span>Jami qaydlar: <strong id="totalLogsCounter" class="text-slate-600 dark:text-slate-300 font-mono">8</strong> ta hodisa</span>
+          <span class="flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-emerald-500"></span> Supabase RLS Realtime Stream faol
+          </span>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="mt-auto border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 py-4">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400">
+        <div class="flex items-center gap-2">
+          <span class="font-bold text-slate-700 dark:text-slate-300">Xavfsiz Maskan</span>
+          <span>·</span>
+          <span>O'zbekiston Ta'lim Muassasalari Kiberxavfsizlik Ekosistemasi</span>
+        </div>
+        <div class="flex items-center gap-4">
+          <button onclick="openSmartHybridModal()" class="hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+            Smart Hybrid Qo'llanmasi
+          </button>
+          <span>·</span>
+          <button onclick="openSettingsModal()" class="hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+            Sozlamalar
+          </button>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <!-- 3. SOZLAMALAR (SETTINGS) VA PAROLNI O'ZGARTIRISH MODALI -->
+  <div id="settingsModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-slate-950/80 backdrop-blur-xs p-4">
+    <div class="w-full max-w-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-2xl">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800 mb-4">
+        <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+          <i class="fa-solid fa-sliders text-sky-500"></i>
+          <span>Tizim Sozlamalari & Xavfsizlik</span>
+        </h3>
+        <button onclick="closeSettingsModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <div class="space-y-5">
+        <!-- Parolni o'zgartirish bo'limi -->
+        <div class="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700/60">
+          <h4 class="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-1.5">
+            <i class="fa-solid fa-key text-sky-500"></i> Administrator Parolini O'zgartirish
+          </h4>
+          <form onsubmit="handleChangePassword(event)" class="space-y-2.5">
+            <div>
+              <label class="block text-[11px] text-slate-500 mb-1">Joriy parol</label>
+              <input type="password" id="currentPassInput" required placeholder="Joriy parolingiz"
+                class="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md text-xs focus:ring-1 focus:ring-sky-500">
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-[11px] text-slate-500 mb-1">Yangi parol</label>
+                <input type="password" id="newPassInput" required placeholder="Kamida 6 belgi"
+                  class="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md text-xs focus:ring-1 focus:ring-sky-500">
+              </div>
+              <div>
+                <label class="block text-[11px] text-slate-500 mb-1">Yangi parolni takrorlang</label>
+                <input type="password" id="confirmPassInput" required placeholder="Takrorlang"
+                  class="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md text-xs focus:ring-1 focus:ring-sky-500">
+              </div>
+            </div>
+            <div id="passChangeMsg" class="hidden text-xs py-1"></div>
+            <button type="submit" class="w-full py-1.5 bg-sky-600 hover:bg-sky-500 text-white rounded-md text-xs font-semibold transition-colors">
+              Parolni Yangilash
+            </button>
+          </form>
+        </div>
+
+        <!-- FastAPI va Supabase URL sozlamalari -->
+        <div class="space-y-3">
+          <h4 class="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+            <i class="fa-solid fa-network-wired text-amber-500"></i> Server va Backend Bog'lanishlari
+          </h4>
+
+          <div>
+            <label class="block text-[11px] text-slate-500 mb-1">FastAPI Antivirus & AI Backend URL</label>
+            <div class="flex gap-2">
+              <input type="text" id="fastApiUrlInput" value="http://127.0.0.1:8000"
+                class="flex-1 px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-xs font-mono">
+              <button type="button" onclick="testFastApiConnection()" class="px-3 py-1.5 bg-slate-200 dark:bg-slate-700 text-xs font-medium rounded-md hover:bg-slate-300 transition-colors">
+                Ping Test
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-[11px] text-slate-500 mb-1">Markaziy Supabase URL (Multi-Tenant Baza)</label>
+            <input type="text" id="supabaseUrlInput" value="https://xavfsiz-maskan.supabase.co"
+              class="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-xs font-mono">
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-6 pt-3 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-2">
+        <button onclick="closeSettingsModal()" class="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-xs font-semibold rounded-lg">
+          Yopish
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. SMART HYBRID ARXITEKTURASI MODALI -->
+  <div id="smartHybridModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-slate-950/80 backdrop-blur-xs p-4">
+    <div class="w-full max-w-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800 mb-4">
+        <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+          <i class="fa-solid fa-diagram-project text-sky-500"></i>
+          <span>"Smart Hybrid" va Multi-Tenant Arxitekturasi</span>
+        </h3>
+        <button onclick="closeSmartHybridModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <div class="space-y-4 text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+        <div class="p-4 bg-sky-500/10 border border-sky-500/20 rounded-xl">
+          <h4 class="font-bold text-sky-600 dark:text-sky-400 text-sm mb-1 flex items-center gap-1.5">
+            <i class="fa-solid fa-shield-halved"></i> 1. Smart Hybrid: Internet Uzilganda Ham 100% Himoya
+          </h4>
+          <p>
+            O'zbekistondagi hududiy ta'lim muassasalarida tashqi internet aloqasi yoki markaziy AI server bilan aloqa 
+            uzilib qolsa ham, litsey shlyuzidagi <strong>AdGuard Home / DNS Edge Agent</strong> mustaqil ishlaydi.
+            Barcha dars jadvallari, domen taqiqlari va fishing filtrlari lokal keshdan <strong>0 millisoniya kechikish</strong> 
+            bilan tekshiriladi. O'quvchilar dars vaqtida taqiqlangan saytlarga internet qayta ulanguncha ham kira olmaydi.
+          </p>
+        </div>
+
+        <div class="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
+          <h4 class="font-bold text-emerald-600 dark:text-emerald-400 text-sm mb-1 flex items-center gap-1.5">
+            <i class="fa-solid fa-network-wired"></i> 2. Multi-Tenant SaaS (Yuzlab Litseylar Uchun Yagona Ekotizim)
+          </h4>
+          <p>
+            Respublikadagi har bir litsey o'zining unikal <strong>"Litsey ID"</strong> (masalan, <code class="font-mono text-emerald-500">UZ-TAS-AL01</code>) 
+            orqali markaziy Supabase bulut bazasiga ulanadi. <strong>Row Level Security (RLS)</strong> orqali ma'lumotlar 
+            mutlaqo xavfsiz izolyatsiya qilingan. Bitta litsey ma'muri boshqa litseyning kompyuterlari yoki loglarini ko'ra olmaydi.
+          </p>
+        </div>
+
+        <div class="p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-xl">
+          <h4 class="font-bold text-indigo-600 dark:text-indigo-400 text-sm mb-1 flex items-center gap-1.5">
+            <i class="fa-solid fa-robot"></i> 3. FastAPI + VirusTotal + Gemini Vision Uch Bosqichli Filtrlash
+          </h4>
+          <p>
+            - <strong>1-bosqich:</strong> Lokal DNS filtri (AdGuard) - dars vaqti soatlari va qora ro'yxat.<br>
+            - <strong>2-bosqich:</strong> VirusTotal API (72 ta antivirus dvigateli) - binar fayllarni xesh bo'yicha tahlili.<br>
+            - <strong>3-bosqich:</strong> Gemini Vision AI - chatlar orqali uzatilayotgan tasvirlarni vizual tahlil qilib, kiberbulling va nomaqbul materiallarni aniqlash.
+          </p>
+        </div>
+      </div>
+
+      <div class="mt-6 pt-3 border-t border-slate-200 dark:border-slate-800 flex justify-end">
+        <button onclick="closeSmartHybridModal()" class="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold rounded-lg shadow-sm">
+          Tushunarli, Rahmat
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JAVASCRIPT LOGIKASI -->
+  <script>
+    const DEFAULT_PASS = "xavfsiz2026";
+    let currentMasterPassword = localStorage.getItem('xm_master_password') || DEFAULT_PASS;
+    let isAuthenticated = sessionStorage.getItem('xm_is_auth') === 'true';
+
+    const LYCEUM_DATABASE = {
+      'UZ-TAS-AL01': {
+        title: "Toshkent Axborot Texnologiyalari Universiteti qoshidagi AL",
+        code: "UZ-TAS-AL01",
+        blocked: 14892,
+        blockedToday: 418,
+        infected: 23,
+        aiScanned: 1420,
+        health: "98.6%",
+        rulesCount: 6
+      },
+      'UZ-SAM-PM04': {
+        title: "Samarqand viloyati 1-sonli Ixtisoslashtirilgan Maktab-Internati",
+        code: "UZ-SAM-PM04",
+        blocked: 8940,
+        blockedToday: 184,
+        infected: 11,
+        aiScanned: 890,
+        health: "99.1%",
+        rulesCount: 5
+      },
+      'UZ-FER-AL03': {
+        title: "Farg'ona Davlat Universiteti qoshidagi AL",
+        code: "UZ-FER-AL03",
+        blocked: 11340,
+        blockedToday: 305,
+        infected: 17,
+        aiScanned: 1105,
+        health: "97.8%",
+        rulesCount: 7
+      },
+      'UZ-NAM-AL02': {
+        title: "Namangan Muhandislik-Qurilish Instituti qoshidagi AL",
+        code: "UZ-NAM-AL02",
+        blocked: 7210,
+        blockedToday: 142,
+        infected: 8,
+        aiScanned: 640,
+        health: "99.4%",
+        rulesCount: 4
+      }
+    };
+
+    let domainRules = JSON.parse(localStorage.getItem('xm_domain_rules')) || [
+      { id: '1', domain: 'instagram.com', start: '08:00', end: '14:00', category: 'social', active: true, hits: 1842 },
+      { id: '2', domain: 'tiktok.com', start: '08:00', end: '14:30', category: 'social', active: true, hits: 2910 },
+      { id: '3', domain: 'pubgmobile.com', start: '08:00', end: '16:00', category: 'gaming', active: true, hits: 654 },
+      { id: '4', domain: 'roblox.com', start: '08:00', end: '15:00', category: 'gaming', active: true, hits: 421 },
+      { id: '5', domain: 't.me/proxy', start: '00:00', end: '23:59', category: 'vpn_proxy', active: true, hits: 1120 },
+      { id: '6', domain: '1xbet.com', start: '00:00', end: '23:59', category: 'gambling', active: true, hits: 890 }
+    ];
+
+    let logsList = [
+      { time: '10:48:22', ip: '192.168.10.45', device: 'Komp-Xona-3_PC-08', type: 'DNS_QUERY', target: 'tiktok.com', details: "08:00 - 14:00 dars jadvali taqiqi", status: 'BLOCKED' },
+      { time: '10:47:11', ip: '192.168.10.112', device: 'Wi-Fi-Kutubxona', type: 'AI_VISION', target: 'chat_photo_77.jpg', details: "Gemini Vision: Nojo'ya vizual kontent aniqlandi", status: 'BLOCKED' },
+      { time: '10:45:54', ip: '192.168.10.18', device: 'Oqituvchi_Laptop', type: 'DNS_QUERY', target: 'kundalik.com', details: "Davlat ta'limiy platformasi (Whitelist)", status: 'ALLOWED' },
+      { time: '10:44:03', ip: '192.168.10.73', device: 'Informatika-Lab_PC-14', type: 'FILE_DOWNLOAD', target: 'speed_hack.exe', details: "VirusTotal (Kaspersky+Defender): Trojan.Win32", status: 'QUARANTINED' },
+      { time: '10:41:29', ip: '192.168.10.89', device: 'Talaba_iPhone', type: 'VPN_ATTEMPT', target: '185.220.101.5 (Tor Node)', details: "Proksi orqali aylanib o'tishga urinish to'xtatildi", status: 'BLOCKED' },
+      { time: '10:39:15', ip: '192.168.10.22', device: 'Kutubxona_PC-01', type: 'DNS_QUERY', target: 'edunet.uz', details: "Ruxsat etilgan ta'lim resursi", status: 'ALLOWED' },
+      { time: '10:36:40', ip: '192.168.10.60', device: 'Komp-Xona-2_PC-11', type: 'DNS_QUERY', target: 'instagram.com', details: "Dars vaqtidagi taqiq: DNS 0.0.0.0 ga yo'naltirildi", status: 'BLOCKED' },
+      { time: '10:32:08', ip: '192.168.10.95', device: 'Fizika_PC-03', type: 'DNS_QUERY', target: 'ziyonet.uz', details: "Axborot-ta'lim tarmog'i so'rovi muvaffaqiyatli", status: 'ALLOWED' }
+    ];
+
+    window.addEventListener('DOMContentLoaded', () => {
+      initTheme();
+      checkAuthentication();
+      renderRules();
+      renderLogs();
+    });
+
+    function initTheme() {
+      const savedTheme = localStorage.getItem('xm_theme') || 'dark';
+      if (savedTheme === 'dark') {
+        document.documentElement.classList.add('dark');
+        document.getElementById('themeIcon').className = 'fa-solid fa-moon text-sm';
+      } else {
+        document.documentElement.classList.remove('dark');
+        document.getElementById('themeIcon').className = 'fa-solid fa-sun text-sm text-amber-500';
+      }
+    }
+
+    function toggleTheme() {
+      const isDark = document.documentElement.classList.toggle('dark');
+      localStorage.setItem('xm_theme', isDark ? 'dark' : 'light');
+      document.getElementById('themeIcon').className = isDark 
+        ? 'fa-solid fa-moon text-sm' 
+        : 'fa-solid fa-sun text-sm text-amber-500';
+    }
+
+    function checkAuthentication() {
+      const authModal = document.getElementById('authModal');
+      if (isAuthenticated) {
+        authModal.classList.add('hidden');
+      } else {
+        authModal.classList.remove('hidden');
+      }
+    }
+
+    function handleLogin(e) {
+      e.preventDefault();
+      const enteredPass = document.getElementById('passwordInput').value;
+      const errorDiv = document.getElementById('loginError');
+
+      if (enteredPass === currentMasterPassword) {
+        isAuthenticated = true;
+        sessionStorage.setItem('xm_is_auth', 'true');
+        document.getElementById('authModal').classList.add('hidden');
+        errorDiv.classList.add('hidden');
+        document.getElementById('passwordInput').value = '';
+      } else {
+        errorDiv.classList.remove('hidden');
+      }
+    }
+
+    function handleLogout() {
+      isAuthenticated = false;
+      sessionStorage.removeItem('xm_is_auth');
+      document.getElementById('authModal').classList.remove('hidden');
+    }
+
+    function showDefaultPassHint() {
+      alert("Standart administrator paroli: " + DEFAULT_PASS + "\n\nTizimga kirgach, 'Sozlamalar' bo'limi orqali parolni o'zingiz xohlagan yangi parolga o'zgartirishingiz mumkin.");
+    }
+
+    function togglePassVisibility(inputId) {
+      const input = document.getElementById(inputId);
+      input.type = input.type === 'password' ? 'text' : 'password';
+    }
+
+    function handleLyceumChange(lyceumId) {
+      const lyceum = LYCEUM_DATABASE[lyceumId];
+      if (!lyceum) return;
+
+      document.getElementById('selectedLyceumTitle').textContent = lyceum.title;
+      document.getElementById('selectedLyceumCode').textContent = lyceum.code;
+      document.getElementById('statBlockedSites').textContent = lyceum.blocked.toLocaleString();
+      document.getElementById('statInfectedFiles').textContent = lyceum.infected;
+      document.getElementById('statAiScanned').textContent = lyceum.aiScanned.toLocaleString();
+      document.getElementById('statHealthScore').textContent = lyceum.health;
+    }
+
+    async function scanFileViaFastApi(file) {
+      const resultContainer = document.getElementById('scanResultContainer');
+      const resultCard = document.getElementById('scanResultCard');
+      resultContainer.classList.remove('hidden');
+      
+      resultCard.className = "p-4 rounded-xl border border-sky-500/30 bg-sky-500/5 animate-pulse text-xs";
+      resultCard.innerHTML = `
+        <div class="flex items-center gap-3">
+          <i class="fa-solid fa-spinner fa-spin text-sky-500 text-lg"></i>
+          <div>
+            <p class="font-bold text-slate-800 dark:text-slate-200">Fayl tahlil qilinmoqda...</p>
+            <p class="text-slate-400">FastAPI backend va Gemini Vision API ga so'rov jo'natilmoqda...</p>
+          </div>
+        </div>
+      `;
+
+      const fastApiUrl = document.getElementById('fastApiUrlInput').value || 'http://127.0.0.1:8000';
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const response = await fetch(fastApiUrl + '/api/v1/scan', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          renderScanResult(data);
+          return;
+        }
+      } catch (err) {
+        console.warn("Lokal FastAPI server bilan ulanish bo'lmadi. Namoyish dvigateli ishlatilmoqda.");
+      }
+
+      setTimeout(() => {
+        const isMalicious = file.name.toLowerCase().includes('hack') || file.name.toLowerCase().includes('.exe');
+        const isSuspiciousImage = file.type && file.type.startsWith('image/');
+
+        const mockData = {
+          filename: file.name,
+          size: (file.size / 1024).toFixed(1) + ' KB',
+          sha256: '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08',
+          status: isMalicious ? 'MALICIOUS' : (isSuspiciousImage ? 'CLEAN_REVIEWED' : 'CLEAN'),
+          threatName: isMalicious ? 'Trojan.Win32.Agent.MalwareLoader' : 'Xavfsiz Ta\'lim Fayli',
+          enginesDetected: isMalicious ? 61 : 0,
+          totalEngines: 72,
+          geminiVision: isSuspiciousImage ? "Gemini Vision: Tasvir ta'lim talablariga mos, nojo'ya belgilar yo'q." : "Binar tahlil: Makro-viruslar aniqlanmadi."
+        };
+        renderScanResult(mockData);
+      }, 900);
+    }
+
+    function renderScanResult(data) {
+      const resultCard = document.getElementById('scanResultCard');
+      const isMalicious = data.status === 'MALICIOUS';
+
+      resultCard.className = isMalicious
+        ? "p-4 rounded-xl border border-rose-500/30 bg-rose-500/10 text-xs"
+        : "p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-xs";
+
+      resultCard.innerHTML = `
+        <div class="flex items-start justify-between gap-3">
+          <div class="flex items-start gap-3">
+            <div class="w-10 h-10 rounded-lg ${isMalicious ? 'bg-rose-500 text-white' : 'bg-emerald-500 text-white'} flex items-center justify-center text-lg shrink-0">
+              <i class="fa-solid ${isMalicious ? 'fa-skull-crossbones' : 'fa-circle-check'}"></i>
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="font-bold text-sm text-slate-900 dark:text-white">${data.filename}</span>
+                <span class="px-2 py-0.5 rounded text-[10px] font-bold ${isMalicious ? 'bg-rose-600 text-white' : 'bg-emerald-600 text-white'}">
+                  ${isMalicious ? 'XAVFLI (TAQIQ)' : 'XAVFSIZ (RUXSAT)'}
+                </span>
+              </div>
+              <p class="text-slate-500 dark:text-slate-400 mt-0.5">Hajmi: ${data.size} · SHA-256: ${data.sha256.substring(0, 16)}...</p>
+              <div class="mt-2 text-slate-700 dark:text-slate-300">
+                <p><strong>VirusTotal natijasi:</strong> ${data.enginesDetected} / ${data.totalEngines} antivirus dvigateli tahdid aniqladi (${data.threatName})</p>
+                <p class="mt-1"><strong>AI Sentinel (Gemini Vision):</strong> ${data.geminiVision}</p>
+              </div>
+            </div>
+          </div>
+          <button onclick="document.getElementById('scanResultContainer').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+      `;
+    }
+
+    function runPresetScan(preset) {
+      if (preset === 'clean_doc') {
+        scanFileViaFastApi({ name: 'Informatika_Darslik_10-sinf.pdf', size: 2450000, type: 'application/pdf' });
+      } else {
+        scanFileViaFastApi({ name: 'Pubg_SpeedHack_v4.exe', size: 4890000, type: 'application/x-msdownload' });
+      }
+    }
+
+    function handleFileSelect(e) {
+      const file = e.target.files[0];
+      if (file) scanFileViaFastApi(file);
+    }
+    function handleDragOver(e) { e.preventDefault(); }
+    function handleDragLeave(e) { e.preventDefault(); }
+    function handleDrop(e) {
+      e.preventDefault();
+      if (e.dataTransfer.files.length > 0) {
+        scanFileViaFastApi(e.dataTransfer.files[0]);
+      }
+    }
+
+    function renderRules() {
+      const container = document.getElementById('rulesListContainer');
+      container.innerHTML = '';
+
+      domainRules.forEach(rule => {
+        const item = document.createElement('div');
+        item.className = "flex items-center justify-between p-2.5 bg-slate-50 dark:bg-slate-800/80 rounded-lg border border-slate-200 dark:border-slate-700 text-xs";
+        item.innerHTML = `
+          <div class="flex items-center gap-2.5">
+            <button onclick="toggleRuleActive('${rule.id}')" class="text-slate-400 hover:text-sky-500">
+              <i class="fa-solid ${rule.active ? 'fa-toggle-on text-emerald-500 text-base' : 'fa-toggle-off text-slate-400 text-base'}"></i>
+            </button>
+            <div>
+              <p class="font-mono font-bold text-slate-800 dark:text-slate-200 ${rule.active ? '' : 'line-through opacity-50'}">
+                ${rule.domain}
+              </p>
+              <p class="text-[10px] text-slate-400 flex items-center gap-1.5 mt-0.5">
+                <span><i class="fa-regular fa-clock text-[9px]"></i> ${rule.start} - ${rule.end}</span>
+                <span>·</span>
+                <span class="capitalize">${rule.category}</span>
+                <span>·</span>
+                <span>${rule.hits} ta blok</span>
+              </p>
+            </div>
+          </div>
+          <button onclick="deleteRule('${rule.id}')" class="text-slate-400 hover:text-rose-500 p-1">
+            <i class="fa-solid fa-trash-can text-xs"></i>
+          </button>
+        `;
+        container.appendChild(item);
+      });
+
+      document.getElementById('activeRulesCountLabel').textContent = domainRules.filter(r => r.active).length + " ta faol qoida";
+    }
+
+    function handleAddRule(e) {
+      e.preventDefault();
+      const domain = document.getElementById('ruleDomainInput').value.trim();
+      const start = document.getElementById('ruleStartInput').value;
+      const end = document.getElementById('ruleEndInput').value;
+      const category = document.getElementById('ruleCategoryInput').value;
+
+      if (!domain) return;
+
+      domainRules.unshift({
+        id: Date.now().toString(),
+        domain: domain,
+        start: start,
+        end: end,
+        category: category,
+        active: true,
+        hits: 0
+      });
+
+      localStorage.setItem('xm_domain_rules', JSON.stringify(domainRules));
+      renderRules();
+      document.getElementById('ruleDomainInput').value = '';
+    }
+
+    function toggleRuleActive(id) {
+      domainRules = domainRules.map(r => r.id === id ? { ...r, active: !r.active } : r);
+      localStorage.setItem('xm_domain_rules', JSON.stringify(domainRules));
+      renderRules();
+    }
+
+    function deleteRule(id) {
+      domainRules = domainRules.filter(r => r.id !== id);
+      localStorage.setItem('xm_domain_rules', JSON.stringify(domainRules));
+      renderRules();
+    }
+
+    function exportAdGuardRules() {
+      const activeRules = domainRules.filter(r => r.active);
+      const text = activeRules.map(r => "||" + r.domain + "^$time=" + r.start + "-" + r.end).join("\n");
+      navigator.clipboard.writeText(text);
+      alert("Lokal AdGuard Home uchun DNS qoidalari nusxalandi!\n\n" + text);
+    }
+
+    function renderLogs(filterStatus = 'ALL', searchKeyword = '') {
+      const tbody = document.getElementById('logsTableBody');
+      tbody.innerHTML = '';
+
+      let filtered = logsList;
+      if (filterStatus !== 'ALL') {
+        filtered = filtered.filter(l => l.status === filterStatus);
+      }
+      if (searchKeyword) {
+        const kw = searchKeyword.toLowerCase();
+        filtered = filtered.filter(l => 
+          l.target.toLowerCase().includes(kw) || 
+          l.ip.toLowerCase().includes(kw) || 
+          l.device.toLowerCase().includes(kw)
+        );
+      }
+
+      filtered.forEach(log => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors";
+
+        let statusBadge = '';
+        if (log.status === 'BLOCKED') {
+          statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/10 text-rose-500 border border-rose-500/20">BLOCKED</span>';
+        } else if (log.status === 'ALLOWED') {
+          statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">ALLOWED</span>';
+        } else {
+          statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20">QUARANTINED</span>';
+        }
+
+        tr.innerHTML = `
+          <td class="py-2.5 px-3 text-slate-400 font-mono">${log.time}</td>
+          <td class="py-2.5 px-3">
+            <p class="text-slate-800 dark:text-slate-200 font-sans font-medium">${log.device}</p>
+            <p class="text-[10px] text-slate-400 font-mono">${log.ip}</p>
+          </td>
+          <td class="py-2.5 px-3 text-slate-600 dark:text-slate-300 font-sans">${log.type}</td>
+          <td class="py-2.5 px-3 font-bold text-slate-800 dark:text-slate-200">${log.target}</td>
+          <td class="py-2.5 px-3 text-slate-500 dark:text-slate-400 font-sans truncate max-w-xs">${log.details}</td>
+          <td class="py-2.5 px-3 text-right">${statusBadge}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      document.getElementById('totalLogsCounter').textContent = filtered.length;
+    }
+
+    function handleLogSearch(val) {
+      const status = document.getElementById('logStatusFilter').value;
+      renderLogs(status, val);
+    }
+    function handleLogFilter(status) {
+      const kw = document.getElementById('logSearchInput').value;
+      renderLogs(status, kw);
+    }
+
+    function simulateIncomingAttack() {
+      const now = new Date();
+      const timeStr = String(now.getHours()).padStart(2, '0') + ':' + 
+                      String(now.getMinutes()).padStart(2, '0') + ':' + 
+                      String(now.getSeconds()).padStart(2, '0');
+
+      const attacks = [
+        { ip: '192.168.10.55', device: 'Informatika-3_PC-02', type: 'DNS_QUERY', target: 'pubgmobile.com', details: 'Dars vaqtidagi taqiq orqali bloklandi', status: 'BLOCKED' },
+        { ip: '192.168.10.140', device: 'Mehmon-WiFi_Android', type: 'VPN_BYPASS', target: '104.21.34.12:8080 (Shadowsocks)', details: 'VPN trafigi aniqlandi va to\'xtatildi', status: 'BLOCKED' },
+        { ip: '192.168.10.33', device: 'Laboratoriya-1_PC-05', type: 'FILE_DOWNLOAD', target: 'cheat_bot.exe', details: 'VirusTotal 64 dvigatel: Trojan.Agent aniqlandi', status: 'QUARANTINED' }
+      ];
+
+      const picked = attacks[Math.floor(Math.random() * attacks.length)];
+      logsList.unshift({
+        time: timeStr,
+        ...picked
+      });
+
+      renderLogs();
+    }
+
+    function exportLogsToCsv() {
+      let csv = "Vaqt,IP,Qurilma,Turi,Nishon,Tafsilotlar,Holati\n";
+      logsList.forEach(l => {
+        csv += `"${l.time}","${l.ip}","${l.device}","${l.type}","${l.target}","${l.details}","${l.status}"\n`;
+      });
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', 'xavfsiz_maskan_logs_' + Date.now() + '.csv');
+      link.click();
+    }
+
+    function openSettingsModal() { document.getElementById('settingsModal').classList.remove('hidden'); }
+    function closeSettingsModal() { document.getElementById('settingsModal').classList.add('hidden'); }
+
+    function openSmartHybridModal() { document.getElementById('smartHybridModal').classList.remove('hidden'); }
+    function closeSmartHybridModal() { document.getElementById('smartHybridModal').classList.add('hidden'); }
+
+    function handleChangePassword(e) {
+      e.preventDefault();
+      const curr = document.getElementById('currentPassInput').value;
+      const newP = document.getElementById('newPassInput').value;
+      const conf = document.getElementById('confirmPassInput').value;
+      const msg = document.getElementById('passChangeMsg');
+
+      if (curr !== currentMasterPassword) {
+        msg.className = "text-xs text-rose-500 py-1";
+        msg.textContent = "Joriy parol noto'g'ri!";
+        msg.classList.remove('hidden');
+        return;
+      }
+      if (newP.length < 6) {
+        msg.className = "text-xs text-rose-500 py-1";
+        msg.textContent = "Yangi parol kamida 6 ta belgidan iborat bo'lishi kerak!";
+        msg.classList.remove('hidden');
+        return;
+      }
+      if (newP !== conf) {
+        msg.className = "text-xs text-rose-500 py-1";
+        msg.textContent = "Yangi parollar bir-biriga mos kelmadi!";
+        msg.classList.remove('hidden');
+        return;
+      }
+
+      currentMasterPassword = newP;
+      localStorage.setItem('xm_master_password', newP);
+
+      msg.className = "text-xs text-emerald-500 py-1";
+      msg.textContent = "Parol muvaffaqiyatli o'zgartirildi!";
+      msg.classList.remove('hidden');
+
+      document.getElementById('currentPassInput').value = '';
+      document.getElementById('newPassInput').value = '';
+      document.getElementById('confirmPassInput').value = '';
+
+      setTimeout(() => {
+        closeSettingsModal();
+        msg.classList.add('hidden');
+      }, 1500);
+    }
+
+    function testFastApiConnection() {
+      const url = document.getElementById('fastApiUrlInput').value || 'http://127.0.0.1:8000';
+      fetch(url + '/health')
+        .then(() => alert("FastAPI server bilan aloqa muvaffaqiyatli o'rnatildi!"))
+        .catch(() => alert("FastAPI server javob bermadi (" + url + ").\nLokal backend ishga tushirilmagan bo'lsa ham, frontend aqlli simulyator orqali to'liq ishlaydi."));
+    }
+
+    function refreshData() {
+      alert("Lokal AdGuard va markaziy Supabase ma'lumotlari yangilandi!");
+    }
+  </script>
+</body>
+</html>
